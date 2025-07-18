@@ -2,7 +2,7 @@
 title FAXINA TOTAL NO WINDOWS
 color 0A
 
-echo Parando serviÁo NFePack_ALB...
+echo Parando servi√ßo NFePack_ALB...
 net stop NFePack_ALB
 
 echo Limpando logs do NFePack...
@@ -18,8 +18,8 @@ echo [1/8] Limpando C:\Windows\Temp...
 del /s /f /q %windir%\Temp\*.*
 for /d %%x in (%windir%\Temp\*) do rd /s /q "%%x"
 
-:: Limpar TEMP de todos os usu·rios
-echo [2/8] Limpando TEMP de todos os usu·rios...
+:: Limpar TEMP de todos os usu√°rios
+echo [2/8] Limpando TEMP de todos os usu√°rios...
 for /d %%u in (C:\Users\*) do (
     del /s /f /q "%%u\AppData\Local\Temp\*.*"
     for /d %%x in ("%%u\AppData\Local\Temp\*") do rd /s /q "%%x"
@@ -29,7 +29,7 @@ for /d %%u in (C:\Users\*) do (
 echo [3/8] Limpando Prefetch...
 del /s /f /q C:\Windows\Prefetch\*.*
 
-:: Limpar SoftwareDistribution (atualizaÁıes baixadas)
+:: Limpar SoftwareDistribution (atualiza√ß√µes baixadas)
 echo [4/8] Limpando updates antigos...
 del /s /f /q C:\Windows\SoftwareDistribution\Download\*.*
 
@@ -50,7 +50,7 @@ ipconfig /flushdns
 echo [7/8] Abrindo Storage Sense...
 start ms-settings:storagesense
 
-echo Iniciando serviÁo NFePack_ALB novamente...
+echo Iniciando servi√ßo NFePack_ALB novamente...
 net start NFePack_ALB
 
 echo.
