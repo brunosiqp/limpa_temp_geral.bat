@@ -56,5 +56,3 @@ net start NFePack_ALB
 echo.
 echo [8/8] LIMPEZA FINALIZADA. FEI, O WINDOWS TA ZERADO.
 pause >nul
-
-a
