@@ -1,5 +1,5 @@
 @echo off
-title Limpeza de Cache do Windows
+title Windows Cache Eraser
 color 0A
 
 echo ========================================
@@ -7,7 +7,7 @@ echo   LIMPEZA SEGURA DE CACHE DO WINDOWS
 echo ========================================
 echo.
 
-echo Limpando TEMP do usuario...
+echo Limpando TEMP do Usuario...
 del /f /s /q "%temp%\*" >nul 2>&1
 for /d %%x in ("%temp%\*") do rd /s /q "%%x" >nul 2>&1
 
@@ -18,7 +18,7 @@ for /d %%x in (C:\Windows\Temp\*) do rd /s /q "%%x" >nul 2>&1
 echo Limpando cache de DNS...
 ipconfig /flushdns >nul
 
-echo Limpando cache de thumbnails...
+echo Limpando cache de Thumbnails...
 taskkill /f /im explorer.exe >nul 2>&1
 del /f /q "%LocalAppData%\Microsoft\Windows\Explorer\thumbcache_*.db" >nul 2>&1
 start explorer.exe
@@ -30,4 +30,5 @@ echo.
 echo ========================================
 echo        LIMPEZA CONCLUIDA
 echo ========================================
+
 pause
