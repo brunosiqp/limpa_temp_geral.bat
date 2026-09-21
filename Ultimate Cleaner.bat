@@ -1,14 +1,14 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul 2>&1
-title LIMPEZA ULTIMATE DO WINDOWS
-color 0A
-mode con cols=96 lines=38 >nul 2>&1
+title Windows Cleaner - Manutencao e Limpeza
+color 0B
+mode con cols=82 lines=32 >nul 2>&1
 
 rem ============================================================
 rem CONFIGURACOES
 rem ============================================================
-set "VERSAO=4.0"
+set "VERSAO=4.1"
 set "BASE=%~dp0"
 set "LOG_DIR=%BASE%Logs_Limpeza"
 set "REL_DIR=%BASE%Relatorios_Limpeza"
@@ -54,35 +54,38 @@ rem MENU PRINCIPAL
 rem ============================================================
 :MENU
 cls
-color 0A
-echo ================================================================================================
-echo                           LIMPEZA ULTIMATE DO WINDOWS v%VERSAO%
-echo ================================================================================================
+color 0B
 echo.
-echo Espaco livre atual: %ESPACO_INICIAL_GB% GB
+echo  ===============================================================================
+echo    WINDOWS CLEANER                                      Versao %VERSAO%
+echo  ===============================================================================
 echo.
-echo [1] LIMPEZA SEGURA
-echo     Temporarios, caches, miniaturas, DNS, lixeira e caches dos navegadores.
+echo    Disco do sistema : %SystemDrive%
+echo    Espaco disponivel: %ESPACO_INICIAL_GB% GB
 echo.
-echo [2] LIMPEZA PROFUNDA
-echo     Inclui Windows Update, Delivery Optimization e limpeza de componentes com DISM.
+echo  -------------------------------------------------------------------------------
+echo    [1] LIMPEZA RAPIDA
+echo        Temporarios, caches, DNS, lixeira e navegadores.
 echo.
-echo [3] SOMENTE ANALISAR
-echo     Exibe o espaco atual e abre as configuracoes de armazenamento. Nao exclui nada.
+echo    [2] LIMPEZA COMPLETA
+echo        Limpeza rapida + Windows Update, Delivery Optimization e DISM.
 echo.
-echo [4] SAIR
+echo    [3] ANALISAR ARMAZENAMENTO
+echo        Apenas consulta o disco. Nenhum arquivo sera removido.
 echo.
-echo ================================================================================================
-choice /c 1234 /n /m "Escolha uma opcao [1-4]: "
+echo    [4] SAIR
+echo  -------------------------------------------------------------------------------
+echo.
+choice /c 1234 /n /m "  Selecione uma opcao: "
 
 if errorlevel 4 goto ENCERRAR
 if errorlevel 3 goto ANALISAR
 if errorlevel 2 (
-    set "MODO=PROFUNDA"
+    set "MODO=COMPLETA"
     goto CONFIRMAR
 )
 if errorlevel 1 (
-    set "MODO=SEGURA"
+    set "MODO=RAPIDA"
     goto CONFIRMAR
 )
 goto MENU
@@ -93,18 +96,23 @@ rem ============================================================
 :CONFIRMAR
 cls
 color 0E
-echo ================================================================================================
-echo                                      CONFIRMACAO
-echo ================================================================================================
 echo.
-echo Modo selecionado: %MODO%
+echo  ===============================================================================
+echo    CONFIRMAR LIMPEZA
+echo  ===============================================================================
 echo.
-echo - Documentos, Downloads, Area de Trabalho e arquivos pessoais NAO serao removidos.
-echo - Arquivos bloqueados ou em uso serao ignorados.
-echo - Feche Chrome e Edge para permitir uma limpeza melhor dos caches.
-echo - O modo profundo pode demorar por causa do DISM.
+echo    Modo selecionado: %MODO%
 echo.
-choice /c SN /n /m "Deseja continuar? [S/N]: "
+echo    O que sera preservado:
+echo      - Documentos, Downloads e Area de Trabalho
+echo      - Arquivos pessoais e configuracoes dos programas
+echo      - Arquivos que estiverem bloqueados ou em uso
+echo.
+echo    Recomendacao: feche Chrome, Edge e outros programas antes de continuar.
+echo.
+echo  -------------------------------------------------------------------------------
+echo.
+choice /c SN /n /m "  Iniciar agora? [S/N]: "
 if errorlevel 2 goto MENU
 if errorlevel 1 goto INICIAR
 goto MENU
@@ -117,9 +125,10 @@ cls
 color 0A
 call :LOG "Inicio da limpeza. Modo: %MODO%"
 
-echo ================================================================================================
-echo                              LIMPEZA %MODO% EM ANDAMENTO
-echo ================================================================================================
+echo.
+echo  ===============================================================================
+echo    LIMPEZA %MODO% EM ANDAMENTO
+echo  ===============================================================================
 echo.
 
 call :ETAPA "Temporarios do usuario atual"
@@ -166,7 +175,7 @@ ipconfig /flushdns >>"%LOG%" 2>&1
 call :ETAPA "Lixeira"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "try { Clear-RecycleBin -Force -ErrorAction Stop } catch { exit 0 }" >>"%LOG%" 2>&1
 
-if /i "%MODO%"=="PROFUNDA" goto PROFUNDA
+if /i "%MODO%"=="COMPLETA" goto PROFUNDA
 goto FINALIZAR
 
 rem ============================================================
@@ -233,24 +242,24 @@ call :LOG "Limpeza concluida. Antes: %ESPACO_INICIAL_GB% GB. Depois: %ESPACO_FIN
 
 cls
 color 0A
-echo ================================================================================================
-echo                                  LIMPEZA CONCLUIDA
-echo ================================================================================================
 echo.
-echo Modo executado:       %MODO%
-echo Espaco livre antes:  %ESPACO_INICIAL_GB% GB
-echo Espaco livre depois: %ESPACO_FINAL_GB% GB
-echo Espaco liberado:     %LIBERADO_MB% MB ^(%LIBERADO_GB% GB^)
+echo  ===============================================================================
+echo    LIMPEZA CONCLUIDA
+echo  ===============================================================================
 echo.
-echo Log:       %LOG%
-echo Relatorio: %RELATORIO%
+echo    Modo executado : %MODO%
+echo    Espaco anterior: %ESPACO_INICIAL_GB% GB
+echo    Espaco atual   : %ESPACO_FINAL_GB% GB
+echo    Total liberado : %LIBERADO_MB% MB ^(%LIBERADO_GB% GB^)
 echo.
-echo [1] Abrir relatorio
-echo [2] Abrir configuracoes de armazenamento
-echo [3] Voltar ao menu
-echo [4] Encerrar
+echo  -------------------------------------------------------------------------------
+echo    [1] Abrir relatorio
+echo    [2] Abrir armazenamento do Windows
+echo    [3] Voltar ao menu
+echo    [4] Encerrar
+echo  -------------------------------------------------------------------------------
 echo.
-choice /c 1234 /n /m "Escolha uma opcao [1-4]: "
+choice /c 1234 /n /m "  Selecione uma opcao: "
 if errorlevel 4 goto ENCERRAR
 if errorlevel 3 (
     call :OBTER_ESPACO ESPACO_INICIAL_BYTES ESPACO_INICIAL_GB
@@ -280,20 +289,20 @@ rem ============================================================
 cls
 color 0B
 call :OBTER_ESPACO ESPACO_ATUAL_BYTES ESPACO_ATUAL_GB
-
-echo ================================================================================================
-echo                              ANALISE DE ARMAZENAMENTO
-echo ================================================================================================
 echo.
-echo Unidade do sistema: %SystemDrive%
-echo Espaco livre atual: %ESPACO_ATUAL_GB% GB
+echo  ===============================================================================
+echo    ANALISE DE ARMAZENAMENTO
+echo  ===============================================================================
 echo.
-echo Nenhum arquivo foi removido.
-echo Abrindo as configuracoes de armazenamento do Windows...
+echo    Unidade analisada: %SystemDrive%
+echo    Espaco disponivel: %ESPACO_ATUAL_GB% GB
+echo    Arquivos removidos: nenhum
+ echo.
+echo    Abrindo as configuracoes de armazenamento do Windows...
 start "" ms-settings:storage
-
 echo.
-echo Pressione qualquer tecla para voltar ao menu...
+echo  -------------------------------------------------------------------------------
+echo    Pressione qualquer tecla para voltar ao menu.
 pause >nul
 goto MENU
 
@@ -308,7 +317,7 @@ for /f "usebackq delims=" %%A in (`powershell.exe -NoProfile -Command "$d=$env:S
 exit /b 0
 
 :ETAPA
-echo [*] %~1...
+echo    [OK] %~1
 call :LOG "%~1"
 exit /b 0
 
@@ -368,11 +377,14 @@ rem ============================================================
 :ENCERRAR
 cls
 color 07
-echo ============================================================
-echo Programa finalizado.
-echo ============================================================
 echo.
-echo Pressione qualquer tecla para fechar.
+echo  ===============================================================================
+echo    WINDOWS CLEANER FINALIZADO
+echo  ===============================================================================
+echo.
+echo    Logs e relatorios ficam salvos na mesma pasta do BAT.
+echo.
+echo    Pressione qualquer tecla para fechar.
 pause >nul
 endlocal
 exit /b 0
