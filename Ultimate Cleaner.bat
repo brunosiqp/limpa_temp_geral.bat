@@ -1,99 +1,81 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
+chcp 65001 >nul 2>&1
 title LIMPEZA ULTIMATE DO WINDOWS
 color 0A
-mode con cols=92 lines=35
+mode con cols=96 lines=38 >nul 2>&1
 
-:: ============================================================
-:: CONFIGURACOES
-:: ============================================================
+rem ============================================================
+rem CONFIGURACOES
+rem ============================================================
+set "VERSAO=4.0"
+set "BASE=%~dp0"
+set "LOG_DIR=%BASE%Logs_Limpeza"
+set "REL_DIR=%BASE%Relatorios_Limpeza"
+set "MODO="
+set "SERV_WUA=0"
+set "SERV_BITS=0"
+set "SERV_DOSVC=0"
 
-set "SCRIPT_VERSION=3.0"
-set "SYSTEM_DRIVE=%SystemDrive%"
-set "LOG_DIR=%~dp0Logs_Limpeza"
-set "RELATORIO_DIR=%~dp0Relatorios_Limpeza"
-
-:: ============================================================
-:: VALIDAR ADMINISTRADOR
-:: ============================================================
-
+rem ============================================================
+rem ELEVAR PARA ADMINISTRADOR
+rem ============================================================
 fltmc >nul 2>&1
 if errorlevel 1 (
-    cls
-    color 0C
-    echo ============================================================
-    echo          ESTE SCRIPT PRECISA DE ADMINISTRADOR
-    echo ============================================================
-    echo.
-    echo Tentando executar novamente como Administrador...
-    echo.
-
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
-    "Start-Process -FilePath '%~f0' -Verb RunAs"
-
+    echo Solicitando permissao de Administrador...
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    if errorlevel 1 (
+        echo.
+        echo Nao foi possivel solicitar permissao de Administrador.
+        pause
+    )
     exit /b
 )
 
-:: ============================================================
-:: PREPARAR PASTAS E DATA
-:: ============================================================
+rem ============================================================
+rem PREPARAR PASTAS E NOMES
+rem ============================================================
+if not exist "%LOG_DIR%" md "%LOG_DIR%" >nul 2>&1
+if not exist "%REL_DIR%" md "%REL_DIR%" >nul 2>&1
 
-if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
-if not exist "%RELATORIO_DIR%" mkdir "%RELATORIO_DIR%" >nul 2>&1
+for /f "usebackq delims=" %%A in (`powershell.exe -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'"`) do set "STAMP=%%A"
+if not defined STAMP set "STAMP=%RANDOM%"
 
-for /f %%D in ('powershell.exe -NoProfile -Command "Get-Date -Format yyyy-MM-dd_HH-mm-ss"') do (
-    set "DATA_EXECUCAO=%%D"
-)
+set "LOG=%LOG_DIR%\Limpeza_%STAMP%.log"
+set "RELATORIO=%REL_DIR%\Relatorio_%STAMP%.txt"
 
-set "LOG_FILE=%LOG_DIR%\Limpeza_%DATA_EXECUCAO%.log"
-set "REPORT_FILE=%RELATORIO_DIR%\Relatorio_%DATA_EXECUCAO%.txt"
+call :OBTER_ESPACO ESPACO_INICIAL_BYTES ESPACO_INICIAL_GB
+call :LOG "Inicio do programa. Espaco livre: %ESPACO_INICIAL_GB% GB"
 
-:: ============================================================
-:: ESPACO INICIAL
-:: ============================================================
+goto MENU
 
-for /f %%A in ('powershell.exe -NoProfile -Command ^
-    "[math]::Round((Get-PSDrive -Name $env:SystemDrive.Substring 2)"') do (
-    set "ESPACO_INICIAL_GB=%%A"
-)
-
-for /f %%A in ('powershell.exe -NoProfile -Command ^
-    "(Get-PSDrive -Name $env:SystemDrive.Substring(0,1)).Free"') do (
-    set "ESPACO_INICIAL_BYTES=%%A"
-)
-
-:: ============================================================
-:: MENU
-:: ============================================================
-
+rem ============================================================
+rem MENU PRINCIPAL
+rem ============================================================
 :MENU
 cls
 color 0A
-
-echo ============================================================================================
-echo                         LIMPEZA ULTIMATE DO WINDOWS
-echo                                  Versao %SCRIPT_VERSION%
-echo ============================================================================================
+echo ================================================================================================
+echo                           LIMPEZA ULTIMATE DO WINDOWS v%VERSAO%
+echo ================================================================================================
 echo.
-echo Unidade do sistema: %SYSTEM_DRIVE%
 echo Espaco livre atual: %ESPACO_INICIAL_GB% GB
 echo.
 echo [1] LIMPEZA SEGURA
-echo     Temporarios, caches, miniaturas, DNS, lixeira e navegadores.
+echo     Temporarios, caches, miniaturas, DNS, lixeira e caches dos navegadores.
 echo.
 echo [2] LIMPEZA PROFUNDA
-echo     Inclui Windows Update, Delivery Optimization, componentes antigos e relatorio DISM.
+echo     Inclui Windows Update, Delivery Optimization e limpeza de componentes com DISM.
 echo.
 echo [3] SOMENTE ANALISAR
-echo     Nao apaga arquivos. Exibe armazenamento e abre as configuracoes do Windows.
+echo     Exibe o espaco atual e abre as configuracoes de armazenamento. Nao exclui nada.
 echo.
 echo [4] SAIR
 echo.
-echo ============================================================================================
+echo ================================================================================================
+choice /c 1234 /n /m "Escolha uma opcao [1-4]: "
 
-choice /c 1234 /n /m "Escolha uma opcao: "
-
-if errorlevel 4 exit /b
+if errorlevel 4 goto ENCERRAR
 if errorlevel 3 goto ANALISAR
 if errorlevel 2 (
     set "MODO=PROFUNDA"
@@ -103,83 +85,60 @@ if errorlevel 1 (
     set "MODO=SEGURA"
     goto CONFIRMAR
 )
+goto MENU
 
-:: ============================================================
-:: CONFIRMACAO
-:: ============================================================
-
+rem ============================================================
+rem CONFIRMACAO
+rem ============================================================
 :CONFIRMAR
 cls
 color 0E
-
-echo ============================================================================================
-echo                              CONFIRMACAO
-echo ============================================================================================
+echo ================================================================================================
+echo                                      CONFIRMACAO
+echo ================================================================================================
 echo.
 echo Modo selecionado: %MODO%
 echo.
-echo Arquivos bloqueados ou em uso serao ignorados.
-echo Documentos, Downloads, Area de Trabalho e arquivos pessoais nao serao excluidos.
-echo Navegadores nao serao fechados automaticamente.
+echo - Documentos, Downloads, Area de Trabalho e arquivos pessoais NAO serao removidos.
+echo - Arquivos bloqueados ou em uso serao ignorados.
+echo - Feche Chrome e Edge para permitir uma limpeza melhor dos caches.
+echo - O modo profundo pode demorar por causa do DISM.
 echo.
-echo Recomendacoes:
-echo.
-echo  - Salve seus trabalhos antes de continuar.
-echo  - Feche Chrome, Edge e outros programas para limpar mais arquivos.
-echo  - Nao desligue o computador durante a limpeza profunda.
-echo.
-
-choice /c SN /n /m "Deseja iniciar a limpeza? [S/N]: "
-
+choice /c SN /n /m "Deseja continuar? [S/N]: "
 if errorlevel 2 goto MENU
 if errorlevel 1 goto INICIAR
+goto MENU
 
-:: ============================================================
-:: INICIO
-:: ============================================================
-
+rem ============================================================
+rem LIMPEZA SEGURA
+rem ============================================================
 :INICIAR
 cls
 color 0A
+call :LOG "Inicio da limpeza. Modo: %MODO%"
 
-call :LOG "============================================================"
-call :LOG "INICIO DA LIMPEZA"
-call :LOG "Modo: %MODO%"
-call :LOG "Computador: %COMPUTERNAME%"
-call :LOG "Usuario: %USERNAME%"
-call :LOG "Espaco inicial: %ESPACO_INICIAL_GB% GB"
-call :LOG "============================================================"
-
-echo ============================================================================================
-echo                           LIMPEZA EM ANDAMENTO
-echo ============================================================================================
+echo ================================================================================================
+echo                              LIMPEZA %MODO% EM ANDAMENTO
+echo ================================================================================================
 echo.
-echo Modo selecionado: %MODO%
-echo Log: %LOG_FILE%
-echo.
-
-:: ============================================================
-:: LIMPEZA SEGURA
-:: ============================================================
 
 call :ETAPA "Temporarios do usuario atual"
 call :LIMPAR_PASTA "%TEMP%"
-call :LIMPAR_PASTA "%LOCALAPPDATA%\Temp"
+
+if /i not "%TEMP%"=="%LOCALAPPDATA%\Temp" (
+    call :LIMPAR_PASTA "%LOCALAPPDATA%\Temp"
+)
 
 call :ETAPA "Temporarios do Windows"
 call :LIMPAR_PASTA "%WINDIR%\Temp"
 
-call :ETAPA "Temporarios dos perfis de usuarios"
-for /d %%U in ("%SYSTEMDRIVE%\Users\*") do (
-    if exist "%%~fU\AppData\Local\Temp" (
-        call :LIMPAR_PASTA "%%~fU\AppData\Local\Temp"
-    )
+call :ETAPA "Temporarios dos perfis locais"
+for /d %%U in ("%SystemDrive%\Users\*") do (
+    if exist "%%~fU\AppData\Local\Temp" call :LIMPAR_PASTA "%%~fU\AppData\Local\Temp"
 )
 
-call :ETAPA "Cache de miniaturas"
+call :ETAPA "Cache de miniaturas e icones"
 call :LIMPAR_ARQUIVOS "%LOCALAPPDATA%\Microsoft\Windows\Explorer" "thumbcache_*.db"
-
-call :ETAPA "Cache de icones"
 call :LIMPAR_ARQUIVOS "%LOCALAPPDATA%\Microsoft\Windows\Explorer" "iconcache_*.db"
 
 call :ETAPA "Cache DirectX Shader"
@@ -189,280 +148,231 @@ call :ETAPA "Relatorios de falhas de aplicativos"
 call :LIMPAR_PASTA "%LOCALAPPDATA%\CrashDumps"
 call :LIMPAR_PASTA "%LOCALAPPDATA%\Microsoft\Windows\WER\ReportArchive"
 call :LIMPAR_PASTA "%LOCALAPPDATA%\Microsoft\Windows\WER\ReportQueue"
+call :LIMPAR_PASTA "%ProgramData%\Microsoft\Windows\WER\ReportArchive"
+call :LIMPAR_PASTA "%ProgramData%\Microsoft\Windows\WER\ReportQueue"
 
-call :ETAPA "Cache de aplicativos INetCache"
+call :ETAPA "Cache de Internet do Windows"
 call :LIMPAR_PASTA "%LOCALAPPDATA%\Microsoft\Windows\INetCache"
 
-call :ETAPA "Cache do Chrome"
-call :LIMPAR_PASTA "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Cache"
-call :LIMPAR_PASTA "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Code Cache"
-call :LIMPAR_PASTA "%LOCALAPPDATA%\Google\Chrome\User Data\Default\GPUCache"
+call :ETAPA "Cache do Google Chrome"
+call :LIMPAR_CACHE_CHROMIUM "%LOCALAPPDATA%\Google\Chrome\User Data"
 
 call :ETAPA "Cache do Microsoft Edge"
-call :LIMPAR_PASTA "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Cache"
-call :LIMPAR_PASTA "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Code Cache"
-call :LIMPAR_PASTA "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\GPUCache"
-
-call :ETAPA "Cache do Microsoft Store"
-wsreset.exe -i >nul 2>&1
-call :LOG "Comando de limpeza do Microsoft Store executado."
+call :LIMPAR_CACHE_CHROMIUM "%LOCALAPPDATA%\Microsoft\Edge\User Data"
 
 call :ETAPA "Cache DNS"
-ipconfig /flushdns >>"%LOG_FILE%" 2>&1
+ipconfig /flushdns >>"%LOG%" 2>&1
 
 call :ETAPA "Lixeira"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
-"try { Clear-RecycleBin -Force -ErrorAction Stop } catch { exit 0 }" >>"%LOG_FILE%" 2>&1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "try { Clear-RecycleBin -Force -ErrorAction Stop } catch { exit 0 }" >>"%LOG%" 2>&1
 
-if /I "%MODO%"=="SEGURA" goto FINALIZAR
+if /i "%MODO%"=="PROFUNDA" goto PROFUNDA
+goto FINALIZAR
 
-:: ============================================================
-:: LIMPEZA PROFUNDA
-:: ============================================================
-
-call :ETAPA "Criando ponto de verificacao no log"
-call :LOG "Inicio das operacoes profundas."
-
-call :ETAPA "Parando servicos do Windows Update"
-
-set "WUAUSERV_PARADO=0"
-set "BITS_PARADO=0"
-set "DOSVC_PARADO=0"
-
-sc query wuauserv | find /i "RUNNING" >nul 2>&1
-if not errorlevel 1 (
-    net stop wuauserv >>"%LOG_FILE%" 2>&1
-    set "WUAUSERV_PARADO=1"
-)
-
-sc query bits | find /i "RUNNING" >nul 2>&1
-if not errorlevel 1 (
-    net stop bits >>"%LOG_FILE%" 2>&1
-    set "BITS_PARADO=1"
-)
-
-sc query dosvc | find /i "RUNNING" >nul 2>&1
-if not errorlevel 1 (
-    net stop dosvc >>"%LOG_FILE%" 2>&1
-    set "DOSVC_PARADO=1"
-)
+rem ============================================================
+rem LIMPEZA PROFUNDA
+rem ============================================================
+:PROFUNDA
+call :ETAPA "Verificando e parando servicos de atualizacao"
+call :PARAR_SERVICO wuauserv SERV_WUA
+call :PARAR_SERVICO bits SERV_BITS
+call :PARAR_SERVICO dosvc SERV_DOSVC
 
 call :ETAPA "Cache baixado do Windows Update"
 call :LIMPAR_PASTA "%WINDIR%\SoftwareDistribution\Download"
 
 call :ETAPA "Cache do Delivery Optimization"
 call :LIMPAR_PASTA "%WINDIR%\SoftwareDistribution\DeliveryOptimization"
-call :LIMPAR_PASTA "%SYSTEMDRIVE%\ProgramData\Microsoft\Windows\DeliveryOptimization\Cache"
+call :LIMPAR_PASTA "%ProgramData%\Microsoft\Windows\DeliveryOptimization\Cache"
 
-call :ETAPA "Arquivos temporarios do sistema"
-if exist "%WINDIR%\Downloaded Program Files" (
-    call :LIMPAR_PASTA "%WINDIR%\Downloaded Program Files"
-)
+call :ETAPA "Componentes antigos do Windows com DISM"
+DISM.exe /Online /Cleanup-Image /StartComponentCleanup >>"%LOG%" 2>&1
+set "DISM_RC=!errorlevel!"
+call :LOG "DISM finalizado com codigo !DISM_RC!."
 
-call :ETAPA "Limpeza de componentes antigos do Windows"
-DISM.exe /Online /Cleanup-Image /StartComponentCleanup >>"%LOG_FILE%" 2>&1
-set "DISM_RESULT=%errorlevel%"
+call :ETAPA "Reiniciando servicos anteriormente ativos"
+if "!SERV_DOSVC!"=="1" net start dosvc >>"%LOG%" 2>&1
+if "!SERV_BITS!"=="1" net start bits >>"%LOG%" 2>&1
+if "!SERV_WUA!"=="1" net start wuauserv >>"%LOG%" 2>&1
 
-if "%DISM_RESULT%"=="0" (
-    call :LOG "DISM StartComponentCleanup concluido com sucesso."
-) else (
-    call :LOG "DISM retornou o codigo %DISM_RESULT%."
-)
+goto FINALIZAR
 
-call :ETAPA "Analise do armazenamento de componentes"
-DISM.exe /Online /Cleanup-Image /AnalyzeComponentStore >>"%LOG_FILE%" 2>&1
-
-call :ETAPA "Reiniciando servicos"
-
-if "!DOSVC_PARADO!"=="1" (
-    net start dosvc >>"%LOG_FILE%" 2>&1
-)
-
-if "!BITS_PARADO!"=="1" (
-    net start bits >>"%LOG_FILE%" 2>&1
-)
-
-if "!WUAUSERV_PARADO!"=="1" (
-    net start wuauserv >>"%LOG_FILE%" 2>&1
-)
-
-:: Garantir que os servicos importantes nao ficaram parados
-sc query wuauserv | find /i "RUNNING" >nul 2>&1
-if errorlevel 1 net start wuauserv >>"%LOG_FILE%" 2>&1
-
-sc query bits | find /i "RUNNING" >nul 2>&1
-if errorlevel 1 net start bits >>"%LOG_FILE%" 2>&1
-
-:: ============================================================
-:: FINALIZAR
-:: ============================================================
-
+rem ============================================================
+rem FINALIZACAO E RELATORIO
+rem ============================================================
 :FINALIZAR
-
 call :ETAPA "Calculando espaco liberado"
+call :OBTER_ESPACO ESPACO_FINAL_BYTES ESPACO_FINAL_GB
 
-for /f %%A in ('powershell.exe -NoProfile -Command ^
-    "(Get-PSDrive -Name $env:SystemDrive.Substring(0,1)).Free"') do (
-    set "ESPACO_FINAL_BYTES=%%A"
-)
+for /f "usebackq delims=" %%A in (`powershell.exe -NoProfile -Command "$a=[decimal]'%ESPACO_INICIAL_BYTES%'; $b=[decimal]'%ESPACO_FINAL_BYTES%'; [Math]::Round(($b-$a)/1MB,2).ToString([Globalization.CultureInfo]::InvariantCulture)"`) do set "LIBERADO_MB=%%A"
+for /f "usebackq delims=" %%A in (`powershell.exe -NoProfile -Command "$a=[decimal]'%ESPACO_INICIAL_BYTES%'; $b=[decimal]'%ESPACO_FINAL_BYTES%'; [Math]::Round(($b-$a)/1GB,3).ToString([Globalization.CultureInfo]::InvariantCulture)"`) do set "LIBERADO_GB=%%A"
 
-for /f %%A in ('powershell.exe -NoProfile -Command ^
-    "[math]::Round((Get-PSDrive -Name $env:SystemDrive.Substring(0)"') do (
-    set "ESPACO_FINAL_GB=%%A"
-)
+if not defined LIBERADO_MB set "LIBERADO_MB=0"
+if not defined LIBERADO_GB set "LIBERADO_GB=0"
 
-for /f %%A in ('powershell.exe -NoProfile -Command ^
-    "$d=[decimal]'%ESPACO_FINAL_BYTES%'-[decimal]'%ESPACO_INICIAL_BYTES%'; [math]:: do (
-    set "ESPACO_LIBERADO_GB=%%A"
-)
-
-for /f %%A in ('powershell.exe -NoProfile -Command ^
-    "$d=[decimal]'%ESPACO_FINAL_BYTES%'-[decimal]'%ESPACO_INICIAL_BYTES%'; [math]::Round
-    set "ESPACO_LIBERADO_MB=%%A"
-)
-
-call :LOG "============================================================"
-call :LOG "LIMPEZA FINALIZADA"
-call :LOG "Espaco inicial: %ESPACO_INICIAL_GB% GB"
-call :LOG "Espaco final: %ESPACO_FINAL_GB% GB"
-call :LOG "Espaco liberado: %ESPACO_LIBERADO_GB% GB"
-call :LOG "============================================================"
-
-:: ============================================================
-:: RELATORIO
-:: ============================================================
+call :LOG "Limpeza concluida. Antes: %ESPACO_INICIAL_GB% GB. Depois: %ESPACO_FINAL_GB% GB. Liberado: %LIBERADO_MB% MB."
 
 (
     echo ============================================================
-    echo          RELATORIO DE LIMPEZA DO WINDOWS
+    echo RELATORIO DE LIMPEZA DO WINDOWS
     echo ============================================================
-    echo.
     echo Data: %DATE% %TIME%
     echo Computador: %COMPUTERNAME%
     echo Usuario: %USERNAME%
-    echo Modo executado: %MODO%
+    echo Modo: %MODO%
     echo.
     echo Espaco livre antes: %ESPACO_INICIAL_GB% GB
     echo Espaco livre depois: %ESPACO_FINAL_GB% GB
-    echo Espaco liberado: %ESPACO_LIBERADO_GB% GB
-    echo Espaco liberado em MB: %ESPACO_LIBERADO_MB% MB
+    echo Espaco liberado: %LIBERADO_MB% MB ^(%LIBERADO_GB% GB^)
     echo.
     echo Arquivos bloqueados ou em uso foram ignorados.
-    echo Documentos e arquivos pessoais nao foram removidos.
+    echo Arquivos pessoais nao foram removidos.
     echo.
-    echo Log detalhado:
-    echo %LOG_FILE%
-    echo.
-    echo ============================================================
-) >"%REPORT_FILE%"
+    echo Log detalhado: %LOG%
+) >"%RELATORIO%"
 
 cls
 color 0A
-
-echo ============================================================================================
-echo                              LIMPEZA CONCLUIDA
-echo ============================================================================================
+echo ================================================================================================
+echo                                  LIMPEZA CONCLUIDA
+echo ================================================================================================
 echo.
-echo Modo executado:        %MODO%
-echo Espaco livre antes:   %ESPACO_INICIAL_GB% GB
-echo Espaco livre depois:  %ESPACO_FINAL_GB% GB
-echo Espaco liberado:      %ESPACO_LIBERADO_GB% GB
+echo Modo executado:       %MODO%
+echo Espaco livre antes:  %ESPACO_INICIAL_GB% GB
+echo Espaco livre depois: %ESPACO_FINAL_GB% GB
+echo Espaco liberado:     %LIBERADO_MB% MB ^(%LIBERADO_GB% GB^)
 echo.
-echo Log detalhado:
-echo %LOG_FILE%
+echo Log:       %LOG%
+echo Relatorio: %RELATORIO%
 echo.
-echo Relatorio:
-echo %REPORT_FILE%
-echo.
-echo ============================================================================================
 echo [1] Abrir relatorio
 echo [2] Abrir configuracoes de armazenamento
-echo [3] Encerrar
+echo [3] Voltar ao menu
+echo [4] Encerrar
 echo.
-
-choice /c 123 /n /m "Escolha uma opcao: "
-
-if errorlevel 3 exit /b
+choice /c 1234 /n /m "Escolha uma opcao [1-4]: "
+if errorlevel 4 goto ENCERRAR
+if errorlevel 3 (
+    call :OBTER_ESPACO ESPACO_INICIAL_BYTES ESPACO_INICIAL_GB
+    goto MENU
+)
 if errorlevel 2 (
     start "" ms-settings:storage
-    exit /b
+    goto AGUARDAR_FINAL
 )
 if errorlevel 1 (
-    start "" notepad.exe "%REPORT_FILE%"
-    exit /b
+    start "" notepad.exe "%RELATORIO%"
+    goto AGUARDAR_FINAL
 )
+goto AGUARDAR_FINAL
 
-exit /b
+:AGUARDAR_FINAL
+echo.
+echo Pressione qualquer tecla para voltar ao menu...
+pause >nul
+call :OBTER_ESPACO ESPACO_INICIAL_BYTES ESPACO_INICIAL_GB
+goto MENU
 
-:: ============================================================
-:: SOMENTE ANALISAR
-:: ============================================================
-
+rem ============================================================
+rem SOMENTE ANALISAR
+rem ============================================================
 :ANALISAR
 cls
 color 0B
+call :OBTER_ESPACO ESPACO_ATUAL_BYTES ESPACO_ATUAL_GB
 
-echo ============================================================================================
-echo                         ANALISE DE ARMAZENAMENTO
-echo ============================================================================================
+echo ================================================================================================
+echo                              ANALISE DE ARMAZENAMENTO
+echo ================================================================================================
 echo.
-echo Espaco livre atual: %ESPACO_INICIAL_GB% GB
+echo Unidade do sistema: %SystemDrive%
+echo Espaco livre atual: %ESPACO_ATUAL_GB% GB
 echo.
-echo Abrindo as configuracoes de armazenamento...
-echo Nenhum arquivo sera apagado.
-echo.
-
+echo Nenhum arquivo foi removido.
+echo Abrindo as configuracoes de armazenamento do Windows...
 start "" ms-settings:storage
 
-timeout /t 3 /nobreak >nul
-exit /b
+echo.
+echo Pressione qualquer tecla para voltar ao menu...
+pause >nul
+goto MENU
 
-:: ============================================================
-:: FUNCOES
-:: ============================================================
+rem ============================================================
+rem FUNCOES
+rem ============================================================
+:OBTER_ESPACO
+set "%~1=0"
+set "%~2=0"
+for /f "usebackq delims=" %%A in (`powershell.exe -NoProfile -Command "$d=$env:SystemDrive.TrimEnd(':'); [Int64](Get-PSDrive -Name $d).Free"`) do set "%~1=%%A"
+for /f "usebackq delims=" %%A in (`powershell.exe -NoProfile -Command "$d=$env:SystemDrive.TrimEnd(':'); [Math]::Round((Get-PSDrive -Name $d).Free/1GB,2).ToString([Globalization.CultureInfo]::InvariantCulture)"`) do set "%~2=%%A"
+exit /b 0
 
 :ETAPA
-echo [OK] %~1...
+echo [*] %~1...
 call :LOG "%~1"
-exit /b
+exit /b 0
 
 :LOG
-echo [%DATE% %TIME%] %~1>>"%LOG_FILE%"
-exit /b
+>>"%LOG%" echo [%DATE% %TIME%] %~1
+exit /b 0
 
 :LIMPAR_PASTA
-set "PASTA_ALVO=%~1"
-
-if "%PASTA_ALVO%"=="" exit /b
-
-if not exist "%PASTA_ALVO%" (
-    call :LOG "Pasta nao encontrada: %PASTA_ALVO%"
-    exit /b
+set "ALVO=%~1"
+if not defined ALVO exit /b 0
+if not exist "%ALVO%" (
+    call :LOG "Pasta nao encontrada: %ALVO%"
+    exit /b 0
 )
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
-"$p=$env:PASTA_LIMPEZA; if(Test-Path -LiteralPath $p){Get-ChildItem -LiteralPath $p -Force -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue}" ^
->>"%LOG_FILE%" 2>&1
-
-:: Fallback nativo do CMD
-del /f /s /q "%PASTA_ALVO%\*" >>"%LOG_FILE%" 2>&1
-
-for /d %%G in ("%PASTA_ALVO%\*") do (
-    rd /s /q "%%~fG" >>"%LOG_FILE%" 2>&1
-)
-
-call :LOG "Limpeza processada: %PASTA_ALVO%"
-exit /b
+set "ALVO_PS=%ALVO%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=$env:ALVO_PS; if (Test-Path -LiteralPath $p) { Get-ChildItem -LiteralPath $p -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue }" >>"%LOG%" 2>&1
+call :LOG "Pasta processada: %ALVO%"
+exit /b 0
 
 :LIMPAR_ARQUIVOS
-set "PASTA_ARQUIVOS=%~1"
-set "FILTRO_ARQUIVOS=%~2"
+set "PASTA=%~1"
+set "FILTRO=%~2"
+if not exist "%PASTA%" exit /b 0
+del /f /q "%PASTA%\%FILTRO%" >>"%LOG%" 2>&1
+call :LOG "Filtro processado: %PASTA%\%FILTRO%"
+exit /b 0
 
-if not exist "%PASTA_ARQUIVOS%" (
-    call :LOG "Pasta nao encontrada: %PASTA_ARQUIVOS%"
-    exit /b
+:LIMPAR_CACHE_CHROMIUM
+set "PERFIS=%~1"
+if not exist "%PERFIS%" (
+    call :LOG "Navegador nao encontrado em: %PERFIS%"
+    exit /b 0
 )
+for /d %%P in ("%PERFIS%\Default" "%PERFIS%\Profile *") do (
+    if exist "%%~fP" (
+        call :LIMPAR_PASTA "%%~fP\Cache"
+        call :LIMPAR_PASTA "%%~fP\Code Cache"
+        call :LIMPAR_PASTA "%%~fP\GPUCache"
+        call :LIMPAR_PASTA "%%~fP\Service Worker\CacheStorage"
+    )
+)
+exit /b 0
 
-del /f /q "%PASTA_ARQUIVOS%\%FILTRO_ARQUIVOS%" >>"%LOG_FILE%" 2>&1
-call :LOG "Filtro processado: %PASTA_ARQUIVOS%\%FILTRO_ARQUIVOS%"
-exit /b
+:PARAR_SERVICO
+set "%~2=0"
+sc query "%~1" | find /i "RUNNING" >nul 2>&1
+if not errorlevel 1 (
+    net stop "%~1" >>"%LOG%" 2>&1
+    if not errorlevel 1 set "%~2=1"
+)
+exit /b 0
+
+rem ============================================================
+rem ENCERRAR
+rem ============================================================
+:ENCERRAR
+cls
+color 07
+echo ============================================================
+echo Programa finalizado.
+echo ============================================================
+echo.
+echo Pressione qualquer tecla para fechar.
+pause >nul
+endlocal
+exit /b 0
